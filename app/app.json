@@ -8,6 +8,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "experiments": {
+      "baseUrl": "/FantasyRosterOptimizer"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
