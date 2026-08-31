@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Roster IQ API",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "roster-iq-api",
+        "pattern": [
+          {
+            "regexp": "^$",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "Roster IQ API listening on port 3000"
+        }
+      }
+    },
+    {
+      "label": "Start Roster IQ web",
+      "type": "shell",
+      "command": "npx expo start --web --port 8082",
+      "options": {
+        "cwd": "${workspaceFolder}/app"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "roster-iq-web",
+        "pattern": [
+          {
+            "regexp": "^$",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Starting project",
+          "endsPattern": ".*http://localhost:8082.*"
+        }
+      }
+    },
+    {
+      "label": "Launch Roster IQ",
+      "dependsOn": [
+        "Start Roster IQ API",
+        "Start Roster IQ web"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

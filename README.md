@@ -63,6 +63,17 @@ npm install
 npm run web
 ```
 
+### Run locally from VS Code
+
+For personal use, opening this folder in VS Code is the simplest way to run the entire app without deployment. Install dependencies once:
+
+```bash
+cd backend && npm install
+cd ../app && npm install
+```
+
+Copy `backend/.env.example` to `backend/.env` and set `OPENAI_API_KEY`. Then open **Terminal → Run Task → Launch Roster IQ** in VS Code. This starts the API at `http://localhost:3000` and Expo web at `http://localhost:8082`. Open the Expo URL in your browser.
+
 ## Deployment
 
 The repository includes `render.yaml` for a Render Blueprint that provisions the API and PostgreSQL database. Before applying the Blueprint, enter an `OPENAI_API_KEY` when Render requests it.
