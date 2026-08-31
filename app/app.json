@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Roster IQ",
+    "slug": "roster-iq",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.golfgo.app",
+      "infoPlist": {
+        "UIBackgroundModes": []
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#091226"
+      },
+      "package": "com.rostering.iq"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-router"
+    ]
+  }
+}
