@@ -18,10 +18,11 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <RosterProvider>
         <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name='index' />
-        <Stack.Screen name='roster' />
-        <Stack.Screen name='lineup' />
-        <Stack.Screen name='advisor' />
+          <Stack.Screen name='index' />
+          <Stack.Screen name='roster' />
+          <Stack.Screen name='lineup' />
+          <Stack.Screen name='advisor' />
+          <Stack.Screen name='espn-setup' />
         </Stack>
       </RosterProvider>
     </QueryClientProvider>

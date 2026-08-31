@@ -1,3 +1,5 @@
+/** @format */
+
 const requiredInProduction = ["DATABASE_URL", "REFRESH_API_KEY"];
 
 function config() {
@@ -5,11 +7,15 @@ function config() {
     (key) => process.env.NODE_ENV === "production" && !process.env[key],
   );
   if (missing.length) {
-    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}`,
+    );
   }
 
   return {
-    corsOrigins: (process.env.CORS_ORIGINS || "http://localhost:8081")
+    corsOrigins: (
+      process.env.CORS_ORIGINS || "http://localhost:8081,http://localhost:8082"
+    )
       .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
