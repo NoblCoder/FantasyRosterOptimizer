@@ -22,7 +22,7 @@ export default function Roster() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <ScreenEntrance style={[styles.container, isWide && styles.containerWide]}>
-        <ScalePressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.back}>‹ Dashboard</Text></ScalePressable>
+        <ScalePressable onPress={() => router.replace("/")} style={styles.backButton}><Text style={styles.back}>‹ Dashboard</Text></ScalePressable>
         <Text style={styles.title}>My roster</Text>
         <Text style={styles.subtitle}>Add players, then let Roster IQ find your highest-upside lineup.</Text>
         <TextInput value={query} onChangeText={setQuery} placeholder="Search NFL players" placeholderTextColor="#7081A8" style={styles.input} />

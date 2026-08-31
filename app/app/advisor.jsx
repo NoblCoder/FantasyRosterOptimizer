@@ -42,7 +42,7 @@ export default function Advisor() {
       <StatusBar style="light" />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboard}>
         <ScreenEntrance style={styles.container}>
-          <ScalePressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.back}>‹ Dashboard</Text></ScalePressable>
+          <ScalePressable onPress={() => router.replace("/")} style={styles.backButton}><Text style={styles.back}>‹ Dashboard</Text></ScalePressable>
           <Text style={styles.eyebrow}>ROSTER IQ ASSISTANT</Text>
           <Text style={styles.title}>Talk through your next move.</Text>
           <Text style={styles.subtitle}>Advice is based on your in-app roster and projections, not live breaking news.</Text>

@@ -21,7 +21,7 @@ export default function Lineup() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <ScreenEntrance style={[styles.container, isWide && styles.containerWide]}>
-        <ScalePressable onPress={() => router.back()} style={styles.backButton}><Text style={styles.back}>‹ Dashboard</Text></ScalePressable>
+        <ScalePressable onPress={() => router.replace("/")} style={styles.backButton}><Text style={styles.back}>‹ Dashboard</Text></ScalePressable>
         <View style={styles.header}><View><Text style={styles.title}>Week 8 lineup</Text><Text style={styles.subtitle}>PPR · 1 FLEX · Sunday, Oct 25</Text></View><View style={styles.total}><Text style={styles.totalNumber}>{total.toFixed(1)}</Text><Text style={styles.totalLabel}>PROJECTED</Text></View></View>
         <View style={styles.explainer}><Text style={styles.explainerTitle}>Your best lineup is ready</Text><Text style={styles.explainerBody}>Recommendations weigh projections, matchup, weather, history, and usage trends.</Text></View>
         <Text style={styles.section}>STARTERS</Text>
