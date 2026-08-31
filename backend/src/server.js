@@ -24,7 +24,7 @@ app.use(cors({
   },
 }));
 app.use(compression());
-app.use(express.json({ limit: "100kb" }));
+app.use(express.json({ limit: "2mb" }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: "draft-7", legacyHeaders: false }));
 
 app.get("/health", async (req, res, next) => {

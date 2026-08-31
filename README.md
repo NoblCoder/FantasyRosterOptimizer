@@ -53,6 +53,8 @@ The sync replaces the stored roster with the current ESPN starters and bench. Be
 
 Set `OPENAI_API_KEY` in `backend/.env` to enable the in-app Roster IQ Assistant. The key is used only by the Express API and is never exposed to the Expo app. Optionally set `OPENAI_MODEL` (defaults to `gpt-4.1-mini`). The app sends the player's question and its locally displayed roster to `POST /api/advice`.
 
+The assistant also accepts an uploaded JPG, PNG, or WebP roster screenshot (up to 1 MB). It is sent only with the advice request so the configured AI model can evaluate the shown matchup details.
+
 ## Frontend
 
 ```bash

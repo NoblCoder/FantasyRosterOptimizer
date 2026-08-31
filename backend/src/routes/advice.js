@@ -19,9 +19,13 @@ router.post("/advice", async (req, res, next) => {
     }
 
     const message = typeof req.body.message === "string" ? req.body.message.trim() : "";
+    const imageDataUrl = typeof req.body.imageDataUrl === "string" ? req.body.imageDataUrl : "";
     const roster = Array.isArray(req.body.roster) ? req.body.roster.slice(0, 40) : [];
-    if (!message || message.length > 1_000) {
-      return res.status(400).json({ error: "A question of up to 1,000 characters is required." });
+    if ((!message && !imageDataUrl) || message.length > 1_000) {
+      return res.status(400).json({ error: "A question or roster image is required. Questions must be under 1,000 characters." });
+    }
+    if (imageDataUrl && (!/^data:image\/(jpeg|png|webp);base64,/.test(imageDataUrl) || imageDataUrl.length > 1_500_000)) {
+      return res.status(400).json({ error: "Upload a JPG, PNG, or WebP image smaller than 1 MB." });
     }
 
     const rosterContext = roster
@@ -46,7 +50,16 @@ router.post("/advice", async (req, res, next) => {
       body: JSON.stringify({
         model: config.openAiModel,
         instructions: "You are Roster IQ, a concise fantasy-football assistant. Give practical, probabilistic advice based only on the roster context supplied. State uncertainty, never invent current news or statistics, and ask one focused follow-up only when necessary. Keep answers below 180 words.",
-        input: `Roster context:\n${JSON.stringify(rosterContext)}\n\nManager question:\n${message}`,
+        input: [{
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Roster context:\n${JSON.stringify(rosterContext)}\n\nManager question:\n${message || "Analyze this roster screenshot for matchup-driven lineup moves."}`,
+            },
+            ...(imageDataUrl ? [{ type: "input_image", image_url: imageDataUrl, detail: "low" }] : []),
+          ],
+        }],
       }),
     });
 

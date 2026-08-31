@@ -1,10 +1,10 @@
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000/api";
 
-export async function requestAdvice(message, roster) {
+export async function requestAdvice(message, roster, imageDataUrl) {
   const response = await fetch(`${apiUrl}/advice`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, roster }),
+    body: JSON.stringify({ message, roster, imageDataUrl }),
   });
   const payload = await response.json();
 

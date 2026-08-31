@@ -1,7 +1,8 @@
 import { StatusBar } from "expo-status-bar";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { ScalePressable, ScreenEntrance } from "../src/components/AnimatedUI";
 import { useRoster } from "../src/context/RosterProvider";
 import { requestAdvice } from "../src/services/advice";
@@ -19,22 +20,42 @@ export default function Advisor() {
     { id: "welcome", role: "assistant", text: "Ask about your lineup, trade targets, or where to improve. I’ll use the roster in this app for context." },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [rosterImage, setRosterImage] = useState(null);
 
   async function sendMessage(text = message) {
     const question = text.trim();
-    if (!question || isLoading) return;
+    if ((!question && !rosterImage) || isLoading) return;
 
     setMessage("");
-    setMessages((current) => [...current, { id: `user-${Date.now()}`, role: "user", text: question }]);
+    const image = rosterImage;
+    setRosterImage(null);
+    setMessages((current) => [...current, { id: `user-${Date.now()}`, role: "user", text: question || "Analyze my roster screenshot for matchup-based moves.", imageUri: image?.uri }]);
     setIsLoading(true);
     try {
-      const answer = await requestAdvice(question, roster);
+      const answer = await requestAdvice(question, roster, image?.dataUrl);
       setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", text: answer }]);
     } catch (error) {
       setMessages((current) => [...current, { id: `error-${Date.now()}`, role: "assistant", error: true, text: error.message }]);
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function chooseImage() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      base64: true,
+      mediaTypes: ["images"],
+      quality: 0.5,
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      setMessages((current) => [...current, { id: `error-${Date.now()}`, role: "assistant", error: true, text: "This image could not be prepared for analysis. Please choose another screenshot." }]);
+      return;
+    }
+    const mimeType = asset.mimeType === "image/png" || asset.mimeType === "image/webp" ? asset.mimeType : "image/jpeg";
+    setRosterImage({ uri: asset.uri, dataUrl: `data:${mimeType};base64,${asset.base64}` });
   }
 
   return (
@@ -51,6 +72,7 @@ export default function Advisor() {
             {messages.map((item) => (
               <View key={item.id} style={[styles.message, item.role === "user" ? styles.userMessage : styles.assistantMessage, item.error && styles.errorMessage]}>
                 <Text style={styles.messageLabel}>{item.role === "user" ? "YOU" : "ROSTER IQ"}</Text>
+                {item.imageUri && <Image source={{ uri: item.imageUri }} style={styles.messageImage} />}
                 <Text style={styles.messageText}>{item.text}</Text>
               </View>
             ))}
@@ -62,9 +84,11 @@ export default function Advisor() {
               {starterPrompts.map((prompt) => <ScalePressable key={prompt} onPress={() => sendMessage(prompt)} style={styles.prompt}><Text style={styles.promptText}>{prompt}</Text></ScalePressable>)}
             </View>
           )}
+          {rosterImage && <View style={styles.imagePreview}><Image source={{ uri: rosterImage.uri }} style={styles.previewImage} /><Text style={styles.previewText}>Roster screenshot ready to analyze</Text><ScalePressable onPress={() => setRosterImage(null)}><Text style={styles.removeImage}>Remove</Text></ScalePressable></View>}
           <View style={styles.composer}>
             <TextInput value={message} onChangeText={setMessage} placeholder="Ask about a trade, start/sit, or waiver..." placeholderTextColor="#9689BE" multiline style={styles.input} />
-            <ScalePressable accessibilityLabel="Send question" disabled={!message.trim() || isLoading} onPress={() => sendMessage()} style={[styles.send, (!message.trim() || isLoading) && styles.sendDisabled]}><Text style={styles.sendText}>↑</Text></ScalePressable>
+            <ScalePressable accessibilityLabel="Upload roster screenshot" disabled={isLoading} onPress={chooseImage} style={styles.upload}><Text style={styles.uploadText}>+</Text></ScalePressable>
+            <ScalePressable accessibilityLabel="Send question" disabled={(!message.trim() && !rosterImage) || isLoading} onPress={() => sendMessage()} style={[styles.send, ((!message.trim() && !rosterImage) || isLoading) && styles.sendDisabled]}><Text style={styles.sendText}>↑</Text></ScalePressable>
           </View>
         </ScreenEntrance>
       </KeyboardAvoidingView>
@@ -89,12 +113,19 @@ const styles = StyleSheet.create({
   errorMessage: { backgroundColor: "#5A1D44", borderColor: "#FF82C8" },
   messageLabel: { color: "#2DE2E6", fontSize: 9, fontWeight: "800", letterSpacing: 0.9 },
   messageText: { color: "#F6F2FF", fontSize: 14, lineHeight: 20, marginTop: 5 },
+  messageImage: { borderRadius: 10, height: 120, marginTop: 8, resizeMode: "cover", width: "100%" },
   promptList: { gap: 8, marginBottom: 12 },
   prompt: { backgroundColor: "#21104C", borderColor: "#50357D", borderRadius: 12, borderWidth: 1, padding: 12 },
   promptText: { color: "#DCD2F6", fontSize: 12, fontWeight: "600" },
-  composer: { alignItems: "flex-end", backgroundColor: "#21104C", borderColor: "#8B5CFF", borderRadius: 16, borderWidth: 2, flexDirection: "row", gap: 10, padding: 8 },
+  imagePreview: { alignItems: "center", backgroundColor: "#28105B", borderColor: "#6741B0", borderRadius: 12, borderWidth: 1, flexDirection: "row", gap: 10, marginBottom: 8, padding: 8 },
+  previewImage: { borderRadius: 7, height: 38, width: 38 },
+  previewText: { color: "#E9E3FF", flex: 1, fontSize: 12, fontWeight: "600" },
+  removeImage: { color: "#FF82C8", fontSize: 12, fontWeight: "700", padding: 4 },
+  composer: { alignItems: "flex-end", backgroundColor: "#21104C", borderColor: "#8B5CFF", borderRadius: 16, borderWidth: 2, flexDirection: "row", gap: 8, padding: 8 },
   input: { color: "#FFF", flex: 1, fontSize: 14, maxHeight: 100, minHeight: 40, paddingHorizontal: 8, paddingVertical: 7 },
   send: { alignItems: "center", backgroundColor: "#FF4FD8", borderRadius: 11, height: 40, justifyContent: "center", width: 40 },
+  upload: { alignItems: "center", backgroundColor: "#4A2D80", borderRadius: 11, height: 40, justifyContent: "center", width: 40 },
+  uploadText: { color: "#2DE2E6", fontSize: 24, fontWeight: "600", lineHeight: 26 },
   sendDisabled: { backgroundColor: "#6D477B" },
   sendText: { color: "#FFF", fontSize: 22, fontWeight: "800", lineHeight: 24 },
 });
