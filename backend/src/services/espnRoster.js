@@ -21,6 +21,21 @@ const POSITION_MAP = {
 
 const STARTER_SLOTS = new Set([0, 2, 4, 6, 16, 17, 23]);
 
+function extractCurrentWeek(league) {
+  const candidates = [
+    league?.scoringPeriodId,
+    league?.status?.currentScoringPeriod,
+    league?.status?.currentMatchupPeriod,
+    league?.status?.latestScoringPeriod,
+    league?.segmentMetadata?.scoringPeriodId,
+  ];
+  for (const value of candidates) {
+    const parsed = Number(value);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+}
+
 function toOptionalPositiveInt(value) {
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = Number(value);
@@ -158,6 +173,7 @@ async function fetchEspnLeagueSnapshot(config) {
   return {
     leagueName: league.settings?.name || league.name || "ESPN League",
     season: league.seasonId || config.espnSeason,
+    currentWeek: extractCurrentWeek(league),
     teamCount: summarizedTeams.length,
     teams: summarizedTeams,
   };
@@ -195,6 +211,8 @@ async function syncEspnRoster(prisma, config) {
       throw new Error(`ESPN roster request failed with ${response.status}`);
 
     const league = await response.json();
+    const currentWeek = extractCurrentWeek(league);
+    const season = Number(league.seasonId) || effectiveConfig.espnSeason;
     const team = league.teams?.find(
       (candidate) => candidate.id === effectiveConfig.espnTeamId,
     );
@@ -259,10 +277,20 @@ async function syncEspnRoster(prisma, config) {
       data: {
         status: "SUCCEEDED",
         completedAt: new Date(),
-        detail: { rosterId: roster.id, players: players.length },
+        detail: {
+          rosterId: roster.id,
+          players: players.length,
+          season,
+          week: currentWeek,
+        },
       },
     });
-    return { rosterId: roster.id, playersImported: players.length };
+    return {
+      rosterId: roster.id,
+      playersImported: players.length,
+      season,
+      week: currentWeek,
+    };
   } catch (error) {
     await prisma.dataRefresh.update({
       where: { id: refresh.id },

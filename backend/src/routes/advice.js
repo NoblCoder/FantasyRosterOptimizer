@@ -5,6 +5,8 @@ const rateLimit = require("express-rate-limit");
 const config = require("../config");
 
 const router = express.Router();
+const FLEX_POSITIONS = new Set(["RB", "WR", "TE"]);
+const SLOT_ORDER = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLEX", "DST", "K"];
 
 function sanitizeRoster(rawRoster) {
   const roster = Array.isArray(rawRoster) ? rawRoster.slice(0, 40) : [];
@@ -22,6 +24,17 @@ function sanitizeRoster(rawRoster) {
     }));
 }
 
+function projectionFor(player) {
+  if (Number.isFinite(player.projection)) return player.projection;
+  if (player.position === "QB") return 16;
+  if (player.position === "RB") return 10.5;
+  if (player.position === "WR") return 10.8;
+  if (player.position === "TE") return 8;
+  if (player.position === "DST") return 7;
+  if (player.position === "K") return 8;
+  return 8;
+}
+
 function slotOrder(position) {
   if (position === "QB") return 1;
   if (position === "RB") return 2;
@@ -34,12 +47,99 @@ function slotOrder(position) {
 
 function topProjectionPlayers(rosterContext) {
   return rosterContext
-    .filter((player) => Number.isFinite(player.projection))
+    .map((player) => ({ ...player, projection: projectionFor(player) }))
     .sort((left, right) => {
       if (right.projection !== left.projection)
         return right.projection - left.projection;
       return slotOrder(left.position) - slotOrder(right.position);
     });
+}
+
+function buildLineup(rosterContext) {
+  const ranked = topProjectionPlayers(rosterContext);
+  const take = (predicate, count) => {
+    const taken = [];
+    for (const player of ranked) {
+      if (taken.length >= count) break;
+      if (predicate(player) && !taken.some((p) => p.id === player.id)) {
+        taken.push(player);
+      }
+    }
+    return taken;
+  };
+
+  const qb = take((p) => p.position === "QB", 1).map((p) => ({
+    ...p,
+    lineupSlot: "QB",
+  }));
+  const rb = take((p) => p.position === "RB", 2).map((p, i) => ({
+    ...p,
+    lineupSlot: i === 0 ? "RB1" : "RB2",
+  }));
+  const wr = take((p) => p.position === "WR", 2).map((p, i) => ({
+    ...p,
+    lineupSlot: i === 0 ? "WR1" : "WR2",
+  }));
+  const te = take((p) => p.position === "TE", 1).map((p) => ({
+    ...p,
+    lineupSlot: "TE",
+  }));
+  const dst = take((p) => p.position === "DST", 1).map((p) => ({
+    ...p,
+    lineupSlot: "DST",
+  }));
+  const k = take((p) => p.position === "K", 1).map((p) => ({
+    ...p,
+    lineupSlot: "K",
+  }));
+
+  const selectedIds = new Set(
+    [...qb, ...rb, ...wr, ...te, ...dst, ...k].map((p) => p.id),
+  );
+  const flex = ranked
+    .filter((p) => !selectedIds.has(p.id) && FLEX_POSITIONS.has(p.position))
+    .slice(0, 1)
+    .map((p) => ({ ...p, lineupSlot: "FLEX" }));
+
+  const starters = [...qb, ...rb, ...wr, ...te, ...flex, ...dst, ...k].sort(
+    (a, b) =>
+      SLOT_ORDER.indexOf(a.lineupSlot) - SLOT_ORDER.indexOf(b.lineupSlot),
+  );
+  const selected = new Set(starters.map((p) => p.id));
+  const bench = ranked.filter((p) => !selected.has(p.id));
+  const projectedTotal = starters.reduce((sum, p) => sum + p.projection, 0);
+
+  return { starters, bench, projectedTotal: Number(projectedTotal.toFixed(1)) };
+}
+
+function findBestSwap(lineup) {
+  let best = null;
+  for (const starter of lineup.starters) {
+    for (const bench of lineup.bench) {
+      const eligible =
+        starter.position === bench.position ||
+        (starter.lineupSlot === "FLEX" && FLEX_POSITIONS.has(bench.position));
+      if (!eligible) continue;
+      const gain = Number((bench.projection - starter.projection).toFixed(1));
+      if (gain <= 0) continue;
+      if (!best || gain > best.gain) {
+        best = { starter, bench, gain };
+      }
+    }
+  }
+  return best;
+}
+
+function findQuestionComparison(question, rosterContext) {
+  if (!question) return null;
+  const lowered = question.toLowerCase();
+  const mentioned = topProjectionPlayers(rosterContext).filter((player) =>
+    lowered.includes(player.name.toLowerCase()),
+  );
+  if (mentioned.length < 2) return null;
+  const [best, next] = mentioned.slice(0, 2);
+  const edge = Number((best.projection - next.projection).toFixed(1));
+  return { best, next, edge };
 }
 
 function summarizeTopPlayer(player) {
@@ -51,26 +151,53 @@ function summarizeTopPlayer(player) {
 }
 
 function buildFallbackAdvice(question, rosterContext, opponentContext) {
-  const myTop = topProjectionPlayers(rosterContext).slice(0, 9);
-  const oppTop = topProjectionPlayers(opponentContext).slice(0, 9);
-  const myTotal = myTop.reduce(
-    (sum, player) => sum + (player.projection || 0),
-    0,
+  const myLineup = buildLineup(rosterContext);
+  const oppLineup = buildLineup(opponentContext);
+  const totalEdge = Number(
+    (myLineup.projectedTotal - oppLineup.projectedTotal).toFixed(1),
   );
-  const oppTotal = oppTop.reduce(
-    (sum, player) => sum + (player.projection || 0),
-    0,
-  );
-  const edge = myTotal - oppTotal;
-  const bestStart = myTop[0];
-  const bestBench = topProjectionPlayers(rosterContext).slice(9, 20)[0];
-  const matchupNote =
-    bestStart?.matchup || "No matchup data loaded for top starter yet";
-  const questionLead = question
-    ? `On your question (${question.slice(0, 100)}), `
-    : "Based on your current lineup, ";
+  const swap = findBestSwap(myLineup);
+  const comparison = findQuestionComparison(question, rosterContext);
+  const strongestStarter = myLineup.starters[0];
+  const matchupNote = strongestStarter?.matchup || "No matchup note available";
 
-  return `${questionLead}your projected core is ${myTotal.toFixed(1)} points${oppTop.length ? ` versus ${oppTotal.toFixed(1)} for your opponent (${edge >= 0 ? "+" : ""}${edge.toFixed(1)} edge)` : ""}. Prioritize ${summarizeTopPlayer(bestStart)} as a lineup anchor. ${bestBench ? `Your top bench pivot is ${summarizeTopPlayer(bestBench)} if late news changes usage.` : "Add 1-2 more depth players so I can suggest stronger pivots."} Matchup angle: ${matchupNote}. If you share any uncertain start/sit slot, I can give a direct recommendation.`;
+  if (!myLineup.starters.length) {
+    return "I do not have enough player data yet. Add at least one QB, two RBs, two WRs, one TE, one DST, and one K for actionable start/sit advice.";
+  }
+
+  const lines = [];
+  lines.push(
+    `Projected starter total: ${myLineup.projectedTotal.toFixed(1)}${oppLineup.starters.length ? ` vs opponent ${oppLineup.projectedTotal.toFixed(1)} (${totalEdge >= 0 ? "+" : ""}${totalEdge})` : ""}.`,
+  );
+
+  if (comparison) {
+    lines.push(
+      `Direct call: start ${comparison.best.name} over ${comparison.next.name} (${comparison.edge >= 0 ? "+" : ""}${comparison.edge.toFixed(1)} pts).`,
+    );
+  } else if (swap) {
+    lines.push(
+      `Best upgrade: start ${swap.bench.name} over ${swap.starter.name} in ${swap.starter.lineupSlot} (${swap.gain >= 0 ? "+" : ""}${swap.gain.toFixed(1)} pts).`,
+    );
+  } else {
+    const anchor = myLineup.starters[0];
+    lines.push(
+      `Direct call: keep ${anchor?.name || "your current starter core"} in your lineup; no bench option projects higher right now.`,
+    );
+  }
+
+  const secondBench = myLineup.bench[0];
+  if (secondBench) {
+    lines.push(
+      `Top bench contingency: ${summarizeTopPlayer(secondBench)} if late injury/weather news breaks.`,
+    );
+  } else {
+    lines.push(
+      "Top bench contingency: add one extra FLEX-depth player so you have a late-swap option before kickoff.",
+    );
+  }
+
+  lines.push(`Matchup focus: ${matchupNote}.`);
+  return lines.join(" ");
 }
 
 router.use(
@@ -94,12 +221,10 @@ router.post("/advice", async (req, res, next) => {
     const rosterContext = sanitizeRoster(req.body.roster);
     const opponentContext = sanitizeRoster(req.body.opponentRoster);
     if ((!message && !imageDataUrl) || message.length > 1_000) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "A question or roster image is required. Questions must be under 1,000 characters.",
-        });
+      return res.status(400).json({
+        error:
+          "A question or roster image is required. Questions must be under 1,000 characters.",
+      });
     }
     if (
       imageDataUrl &&
@@ -126,7 +251,7 @@ router.post("/advice", async (req, res, next) => {
       body: JSON.stringify({
         model: config.openAiModel,
         instructions:
-          "You are Roster IQ, a concise fantasy-football assistant. Give practical, probabilistic advice based only on the roster context supplied. State uncertainty, never invent current news or statistics, and ask one focused follow-up only when necessary. Keep answers below 180 words.",
+          "You are Roster IQ, a decisive fantasy-football assistant. Based only on supplied roster context, return concrete recommendations with player names and projected point deltas. Output exactly 4 short sentences: (1) projected total and opponent edge, (2) one direct start/sit call, (3) one bench contingency pivot, (4) one matchup note. Never say 'it depends' without still making a best call. Never invent live news or statistics. Keep answer under 140 words.",
         input: [
           {
             role: "user",

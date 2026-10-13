@@ -16,6 +16,7 @@ import { ScalePressable, ScreenEntrance } from "../src/components/AnimatedUI";
 import { useRoster } from "../src/context/RosterProvider";
 import {
   getEspnSetup,
+  getLatestSyncedEspnRoster,
   runEspnPreflight,
   runEspnSync,
   saveEspnSetup,
@@ -48,10 +49,21 @@ export default function EspnSetup() {
   const [isTesting, setIsTesting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [message, setMessage] = useState("");
+  const [syncedRoster, setSyncedRoster] = useState(null);
 
   useEffect(() => {
     loadSetup();
+    loadSyncedRoster();
   }, []);
+
+  async function loadSyncedRoster() {
+    try {
+      const response = await getLatestSyncedEspnRoster();
+      setSyncedRoster(response.roster || null);
+    } catch {
+      setSyncedRoster(null);
+    }
+  }
 
   async function loadSetup() {
     setIsLoading(true);
@@ -112,6 +124,7 @@ export default function EspnSetup() {
     try {
       const result = await runEspnSync();
       await refreshRosterFromBackend();
+      await loadSyncedRoster();
       setMessage(
         `Sync complete: imported ${result.playersImported || 0} players.`,
       );
@@ -218,6 +231,27 @@ export default function EspnSetup() {
                   ))}
                 </View>
               ) : null}
+
+              {syncedRoster?.players?.length ? (
+                <View style={styles.teamList}>
+                  <Text style={styles.teamTitle}>
+                    Synced roster: {syncedRoster.players.length} players
+                  </Text>
+                  {syncedRoster.players.map((player) => (
+                    <Text key={player.id} style={styles.teamRow}>
+                      {player.status === "STARTER" ? "S" : "B"} ·{" "}
+                      {player.position} · {player.name}
+                    </Text>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.statusCard}>
+                  <Text style={styles.statusTitle}>Synced roster</Text>
+                  <Text style={styles.statusText}>
+                    No synced players yet. Run Sync roster from ESPN.
+                  </Text>
+                </View>
+              )}
             </>
           )}
         </ScreenEntrance>

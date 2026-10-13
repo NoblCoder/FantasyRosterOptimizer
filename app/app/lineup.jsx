@@ -20,7 +20,7 @@ import { buildHeadToHead, optimizeLocalLineup } from "../src/services/lineup";
 
 export default function Lineup() {
   const [selected, setSelected] = useState(null);
-  const { roster, opponentRoster } = useRoster();
+  const { roster, opponentRoster, season, week } = useRoster();
   const { width } = useWindowDimensions();
   const isWide = width >= 700;
   const myLineup = useMemo(() => optimizeLocalLineup(roster, 1), [roster]);
@@ -53,8 +53,10 @@ export default function Lineup() {
           </ScalePressable>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Week 8 lineup</Text>
-              <Text style={styles.subtitle}>PPR · 1 FLEX · Sunday, Oct 25</Text>
+              <Text style={styles.title}>Week {week} lineup</Text>
+              <Text style={styles.subtitle}>
+                PPR · 1 FLEX · {season} season
+              </Text>
             </View>
             <View style={styles.total}>
               <Text style={styles.totalNumber}>{total.toFixed(1)}</Text>

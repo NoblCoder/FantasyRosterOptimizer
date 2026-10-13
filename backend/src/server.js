@@ -269,6 +269,7 @@ app.post("/api/espn/setup/preflight", async (req, res, next) => {
         hasSecrets: Boolean(effectiveConfig.espnS2 && effectiveConfig.espnSwid),
         season: effectiveConfig.espnSeason,
       },
+      currentWeek: leagueAccess.ok ? leagueAccess.currentWeek : null,
       database,
       leagueAccess,
     });
@@ -325,6 +326,21 @@ app.get("/api/espn/setup/roster", async (req, res, next) => {
         .json({ error: "No synced ESPN roster found yet." });
     }
 
+    const latestSync = await prisma.dataRefresh.findFirst({
+      where: {
+        provider: "ESPN",
+        resource: "private-roster",
+        status: "SUCCEEDED",
+      },
+      orderBy: { completedAt: "desc" },
+    });
+    const latestDetail =
+      latestSync?.detail && typeof latestSync.detail === "object"
+        ? latestSync.detail
+        : {};
+    const season = Number(latestDetail.season);
+    const week = Number(latestDetail.week);
+
     const players = roster.players.map((slot) => ({
       id: `espn-${slot.player.espnId || slot.player.id}`,
       name: slot.player.name,
@@ -339,6 +355,8 @@ app.get("/api/espn/setup/roster", async (req, res, next) => {
         id: roster.id,
         name: roster.name,
         updatedAt: roster.updatedAt,
+        season: Number.isFinite(season) ? season : null,
+        week: Number.isFinite(week) ? week : null,
         players,
       },
     });

@@ -14,7 +14,7 @@ import { ScalePressable, ScreenEntrance } from "../src/components/AnimatedUI";
 import { optimizeLocalLineup } from "../src/services/lineup";
 
 export default function Dashboard() {
-  const { roster, opponentRoster } = useRoster();
+  const { roster, opponentRoster, season, week } = useRoster();
   const { width } = useWindowDimensions();
   const isWide = width >= 700;
   const myLineup = optimizeLocalLineup(roster, 1);
@@ -29,7 +29,9 @@ export default function Dashboard() {
       <StatusBar style='light' />
       <ScreenEntrance
         style={[styles.container, isWide && styles.containerWide]}>
-        <Text style={styles.eyebrow}>WEEK 8 · 2026</Text>
+        <Text style={styles.eyebrow}>
+          WEEK {week} · {season}
+        </Text>
         <Text style={styles.title}>Roster IQ</Text>
         <Text style={styles.subtitle}>Make every start with conviction.</Text>
 

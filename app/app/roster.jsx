@@ -32,6 +32,7 @@ export default function Roster() {
     rosterSource,
     isHydratingRoster,
     refreshRosterFromBackend,
+    week,
   } = useRoster();
   const { width } = useWindowDimensions();
   const isWide = width >= 700;
@@ -253,7 +254,7 @@ export default function Roster() {
               <View style={styles.info}>
                 <Text style={styles.name}>{player.name}</Text>
                 <Text style={styles.meta}>
-                  {player.team} · {player.opponent || "Week 8"}
+                  {player.team} · {player.opponent || `Week ${week}`}
                 </Text>
               </View>
               <View style={styles.playerActions}>

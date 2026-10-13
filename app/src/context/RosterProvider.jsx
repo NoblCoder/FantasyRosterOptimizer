@@ -45,6 +45,8 @@ export function RosterProvider({ children }) {
   const [opponentRoster, setOpponentRoster] = useState([]);
   const [rosterSource, setRosterSource] = useState("sample");
   const [isHydratingRoster, setIsHydratingRoster] = useState(false);
+  const [season, setSeason] = useState(new Date().getFullYear());
+  const [week, setWeek] = useState(8);
 
   async function refreshRosterFromBackend() {
     setIsHydratingRoster(true);
@@ -53,9 +55,17 @@ export function RosterProvider({ children }) {
       const backendPlayers = Array.isArray(response.roster?.players)
         ? response.roster.players
         : [];
+      const backendSeason = Number(response.roster?.season);
+      const backendWeek = Number(response.roster?.week);
       if (backendPlayers.length) {
         setRoster(backendPlayers.map((player) => normalizePlayer(player)));
         setRosterSource("espn");
+      }
+      if (Number.isFinite(backendSeason) && backendSeason > 0) {
+        setSeason(backendSeason);
+      }
+      if (Number.isFinite(backendWeek) && backendWeek > 0) {
+        setWeek(backendWeek);
       }
       return backendPlayers.length;
     } catch {
@@ -97,6 +107,8 @@ export function RosterProvider({ children }) {
         rosterSource,
         isHydratingRoster,
         refreshRosterFromBackend,
+        season,
+        week,
       }}>
       {children}
     </RosterContext.Provider>
